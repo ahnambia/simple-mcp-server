@@ -76,8 +76,8 @@ resolve: {
 }
 
 # Add shadcn/ui components
-npx shadcn-ui@latest init
-npx shadcn-ui@latest add card button input
+npx shadcn@latest init
+npx shadcn@latest add card button input
 ```
 
 ---
