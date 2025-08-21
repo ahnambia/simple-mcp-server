@@ -105,3 +105,8 @@ npx shadcn@latest add card button input
 
 ---
 
+🔑 Environment Variables
+
+To enable additional tools (weather, stocks, etc.), add keys to an .env file:
+
+.env.example
