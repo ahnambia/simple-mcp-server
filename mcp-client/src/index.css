@@ -1,141 +1,98 @@
+/* Tailwind layers */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
+/* --- Global structure --- */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, "Noto Sans",
+               "Apple Color Emoji", "Segoe UI Emoji";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color-scheme: dark; /* default to dark; tokens below control actual colors */
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
+/* Fill the whole screen; background handled here so every page is full-bleed */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  min-height: 100%;
   min-width: 320px;
-  min-height: 100vh;
+  /* layered, subtle colored glow */
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(236, 72, 153, 0.15), transparent),
+    radial-gradient(900px 500px at 90% 10%, rgba(59, 130, 246, 0.15), transparent),
+    #0b1020; /* deep base */
+  color: hsl(var(--foreground));
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
-
-
-
+/* --- shadcn/ui design tokens (tuned for better contrast) --- */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --background: 224 40% 6%;
+    --foreground: 210 20% 96%;
+    --card: 224 40% 8%;
+    --card-foreground: 210 20% 96%;
+    --popover: 224 40% 8%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 339 90% 55%;          /* accent pink for buttons */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 35% 12%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 222 35% 14%;
+    --muted-foreground: 218 15% 70%;
+    --accent: 222 35% 14%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 78% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 25% 22%;
+    --input: 220 25% 22%;
+    --ring: 339 90% 55%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 161 94% 30%;
+    --chart-3: 43 96% 56%;
+    --chart-4: 280 90% 60%;
+    --chart-5: 340 82% 52%;
+    --radius: 0.75rem;
   }
+
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* keep same palette for now; tokens allow easy theming later */
   }
+
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
 }
 
+/* --- Helpful global niceties --- */
+::selection {
+  background: rgba(236, 72, 153, 0.35); /* pink highlight */
+  color: white;
+}
 
-
-@layer base {
+/* Minimal, subtle scrollbar on desktop */
+@media (pointer: fine) {
   * {
-    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.25) transparent;
   }
-  body {
-    @apply bg-background text-foreground;
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(255,255,255,0.18);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
 }
+
+/* Remove opinionated Vite defaults that fought full-screen layout */
+a, button { text-decoration: none; }

@@ -11,6 +11,17 @@ import httpx
 from dotenv import load_dotenv
 
 load_dotenv()  # loads .env from current working directory
+# Allowed names (functions/constants from math module)
+ALLOWED_NAMES = {
+    k: getattr(math, k)
+    for k in dir(math)
+    if not k.startswith("__")
+}
+ALLOWED_NAMES.update({
+    "abs": abs,
+    "round": round,
+})
+
 
 # ---------- API Keys (via environment) ----------
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
@@ -70,11 +81,13 @@ class MCPRequest(BaseModel):
     task: str
 
 # ---------- Safe math evaluator used by calculator/code_eval ----------
-ALLOWED_NAMES = {k: getattr(math, k) for k in dir(math) if not k.startswith("_")}
+# add Constant to allowed nodes
 ALLOWED_NODES = {
-    ast.Expression, ast.BinOp, ast.UnaryOp, ast.Num, ast.Load,
+    ast.Expression, ast.BinOp, ast.UnaryOp, ast.Load,
     ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv,
     ast.USub, ast.UAdd, ast.Call, ast.Name, ast.Tuple, ast.List,
+    ast.Constant,  
+    ast.Num,       # keep for older Pythons (no harm)
 }
 
 def safe_eval(expr: str):
@@ -82,10 +95,18 @@ def safe_eval(expr: str):
     def _eval(n):
         if type(n) not in ALLOWED_NODES:
             raise ValueError(f"Disallowed expression: {type(n).__name__}")
+
         if isinstance(n, ast.Expression):
             return _eval(n.body)
+
+        # Python 3.9+ numeric/string/boolean literals
+        if isinstance(n, ast.Constant):
+            return n.value
+
+        # Older Python numeric literal node
         if isinstance(n, ast.Num):
             return n.n
+
         if isinstance(n, ast.BinOp):
             left, right = _eval(n.left), _eval(n.right)
             if isinstance(n.op, ast.Add): return left + right
@@ -96,22 +117,29 @@ def safe_eval(expr: str):
             if isinstance(n.op, ast.Mod): return left % right
             if isinstance(n.op, ast.FloorDiv): return left // right
             raise ValueError("Unsupported binary operator")
+
         if isinstance(n, ast.UnaryOp):
             val = _eval(n.operand)
             if isinstance(n.op, ast.UAdd): return +val
             if isinstance(n.op, ast.USub): return -val
             raise ValueError("Unsupported unary operator")
+
         if isinstance(n, ast.Name):
             if n.id in ALLOWED_NAMES: return ALLOWED_NAMES[n.id]
             raise ValueError(f"Unknown name: {n.id}")
+
         if isinstance(n, ast.Call):
             func = _eval(n.func)
             args = [_eval(a) for a in n.args]
             return func(*args)
+
         if isinstance(n, (ast.Tuple, ast.List)):
             return [_eval(e) for e in n.elts]
+
         raise ValueError("Unsupported expression node")
+
     return _eval(node)
+
 
 # ---------- Tools ----------
 # Calculator: wraps safe_eval to return structured output
@@ -213,6 +241,7 @@ def tool_todo(user_id: str, command: str):
 # Code eval (math-only)
 def tool_code_eval(code: str):
     try:
+        code = code.strip() 
         result = safe_eval(code)
         return {"tool": "code_eval", "input": code, "result": result}
     except Exception as e:
@@ -269,9 +298,11 @@ def route_task(user_id: str, task: str):
 
     # 2) Implicit patterns
     if t.lower().startswith("python:"):
-        return "code_eval", t.split(":", 1)[1]
+        return "code_eval", t.split(":", 1)[1].strip()  # <- strip()
+
     if t.lower().startswith("calculate"):
         return "calculator", t.split("calculate", 1)[1]
+    
     if t.lower().startswith("todo "):
         return "todo", t[5:]
 
