@@ -3,6 +3,9 @@ from pydantic import BaseModel
 import openai
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+import re
+import math
+import ast
 
 app = FastAPI(title="Simple MCP-style Server (Tools Expanded)")
 app.add_middleware(
@@ -88,9 +91,9 @@ def safe_eval(expr: str):
 
 # Mock weather tool
 MOCK_WEATHER = {
-"detroit": {"temp_c": 22, "conditions": "Partly cloudy"},
-"mumbai": {"temp_c": 29, "conditions": "Humid, chance of showers"},
-"san francisco": {"temp_c": 18, "conditions": "Foggy AM, sunny PM"},
+    "detroit": {"temp_c": 22, "conditions": "Partly cloudy"},
+    "mumbai": {"temp_c": 29, "conditions": "Humid, chance of showers"},
+    "san francisco": {"temp_c": 18, "conditions": "Foggy AM, sunny PM"},
 }
 
 
@@ -132,6 +135,69 @@ def tool_todo(user_id: str, command: str):
         return {"tool": "todo", "action": "clear", "list": USER_TODOS[user_id]}
     return {"tool": "todo", "error": "Commands: 'todo add <text>', 'todo list', 'todo clear'"}
 
+# Minimal code-eval tool (math-only via safe_eval)
+
+
+def tool_code_eval(code: str):
+    try:
+        result = safe_eval(code)
+        return {"tool": "code_eval", "input": code, "result": result}
+    except Exception as e:
+        return {"tool": "code_eval", "input": code, "error": str(e)}
+
+
+# Registry
+TOOL_REGISTRY = {
+    "calculator": safe_eval,
+    "weather": tool_weather,
+    "stocks": tool_stocks,
+    "todo": tool_todo,
+    "code_eval": tool_code_eval,
+}
+
+# ======================
+# Routing / NLP heuristics
+# ======================
+
+EXPLICIT_SYNTAX = re.compile(r"^use\s+([a-z_]+)\s*:\s*(.+)$", re.IGNORECASE)
+def route_task(user_id: str, task: str):
+    """Heuristic router.
+        Supports explicit: "use weather: Detroit"
+        Or implicit: "weather in Detroit", "stock price AAPL",
+        "calculate 2*(3+4)", "todo add buy milk",
+        "python: sin(pi/2)"
+"""
+    t = task.strip()
+    # 1) Explicit: "use <tool>: <payload>"
+    m = EXPLICIT_SYNTAX.match(t)
+    if m:
+        tool, payload = m.group(1).lower(), m.group(2)
+        return tool, payload
+
+    # 2) Implicit patterns
+    if t.lower().startswith("python:"):
+        return "code_eval", t.split(":", 1)[1]
+    if t.lower().startswith("calculate"):
+        return "calculator", t.split("calculate", 1)[1]
+    if t.lower().startswith("todo "):
+        return "todo", t[5:]
+
+    # weather in <city>
+    m = re.search(r"weather\s+(?:in|for)\s+(.+)", t, re.IGNORECASE)
+    if m:
+        return "weather", m.group(1)
+
+    # stock price <ticker>
+    m = re.search(r"stock\s+price\s+([A-Za-z.]+)", t, re.IGNORECASE)
+    if m:
+        return "stocks", m.group(1)
+
+
+# calculator fallback if it looks like a math expression
+    if re.fullmatch(r"[\d\s+\-*/%().^]+", t):
+        return "calculator", t
+
+    return None, None
 
 
 # ======================
@@ -148,29 +214,27 @@ def handle_request(req: MCPRequest):
     if not req.use_tools:
         return {"error": "Tool usage disabled for this request"}
 
-
-tool_name, payload = route_task(req.user_id, req.task)
-
-
-if tool_name is None:
-    # Optional: send to an LLM fallback if permitted
-    if "llm:fallback" in perms:
-        return {"note": "No matching tool; would route to LLM here."}
-    return {"error": "No matching tool. Try: 'use weather: Detroit', 'weather in Mumbai', 'stock price AAPL', 'todo add buy milk', 'calculate 2*(3+4)', or 'python: sin(pi/2)'."}
+    tool_name, payload = route_task(req.user_id, req.task)
 
 
-if f"tool:{tool_name}" not in perms:
-    return {"error": f"User not permitted to use tool '{tool_name}'"}
+    if tool_name is None:
+        # Optional: send to an LLM fallback if permitted
+        if "llm:fallback" in perms:
+            return {"note": "No matching tool; would route to LLM here."}
+        return {"error": "No matching tool. Try: 'use weather: Detroit', 'weather in Mumbai', 'stock price AAPL', 'todo add buy milk', 'calculate 2*(3+4)', or 'python: sin(pi/2)'."}
+
+
+    if f"tool:{tool_name}" not in perms:
+        return {"error": f"User not permitted to use tool '{tool_name}'"}
 
 
 # Execute tool
-if tool_name == "todo":
-    out = TOOL_REGISTRY[tool_name](req.user_id, payload)
-else:
-    out = TOOL_REGISTRY[tool_name](payload)
+    if tool_name == "todo":
+        out = TOOL_REGISTRY[tool_name](req.user_id, payload)
+    else:
+        out = TOOL_REGISTRY[tool_name](payload)
 
 
 # Attach minimal context echo for observability
-out.update({"user": req.user_id, "context": user_ctx})
-return out
-
+    out.update({"user": req.user_id, "context": user_ctx})
+    return out
